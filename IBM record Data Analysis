@@ -44,31 +44,6 @@ from sklearn.model_selection import ShuffleSplit
 from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
 
-# Libraries for data modelling
-from sklearn import svm, tree, linear_model, neighbors
-from sklearn import naive_bayes, ensemble, discriminant_analysis, gaussian_process
-from sklearn.linear_model import LogisticRegression
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.naive_bayes import GaussianNB
-from sklearn.svm import SVC
-from sklearn.neighbors import KNeighborsClassifier
-from xgboost import XGBClassifier
-from sklearn.ensemble import RandomForestClassifier
-
-# Common sklearn Model Helpers
-from sklearn import feature_selection
-from sklearn import model_selection
-from sklearn import metrics
-# from sklearn.datasets import make_classification
-
-# sklearn modules for performance metrics
-from sklearn.metrics import confusion_matrix, classification_report, precision_recall_curve
-from sklearn.metrics import auc, roc_auc_score, roc_curve, recall_score, log_loss
-from sklearn.metrics import f1_score, accuracy_score, roc_auc_score, make_scorer
-from sklearn.metrics import average_precision_score
-
 # importing misceallenous libraries
 import os
 import re
@@ -604,26 +579,4 @@ df_HR.head()
 
 print('Size of Full Encoded Dataset: {}'. format(df_HR.shape))
 
-# assign the target to a new dataframe and convert it to a numerical feature
-#df_target = df_HR[['Attrition']].copy()
-target = df_HR['Attrition'].copy()
-
-type(target)
-
-# let's remove the target feature and redundant features from the dataset
-df_HR.drop(['Attrition', 'EmployeeCount', 'EmployeeNumber',
-            'StandardHours', 'Over18'], axis=1, inplace=True)
-print('Size of Full dataset is: {}'.format(df_HR.shape))
-
-# Since we have class imbalance (i.e. more employees with turnover=0 than turnover=1)
-# let's use stratify=y to maintain the same ratio as in the training dataset when splitting the dataset
-X_train, X_test, y_train, y_test = train_test_split(df_HR,
-                                                    target,
-                                                    test_size=0.25,
-                                                    random_state=7,
-                                                    stratify=target)  
-print("Number transactions X_train dataset: ", X_train.shape)
-print("Number transactions y_train dataset: ", y_train.shape)
-print("Number transactions X_test dataset: ", X_test.shape)
-print("Number transactions y_test dataset: ", y_test.shape)
 
