@@ -1,0 +1,629 @@
+# importing libraries for data handling and analysis
+import pandas as pd
+from pandas.plotting import scatter_matrix
+from pandas import ExcelWriter
+from pandas import ExcelFile
+from openpyxl import load_workbook
+import numpy as np
+from scipy.stats import norm, skew
+from scipy import stats
+import statsmodels.api as sm
+
+# importing libraries for data visualisations
+import seaborn as sns
+from matplotlib import pyplot
+import matplotlib.pyplot as plt
+import matplotlib.pylab as pylab
+import matplotlib
+%matplotlib inline
+color = sns.color_palette()
+from IPython.display import display
+pd.options.display.max_columns = None
+# Standard plotly imports
+import plotly
+import plotly.plotly as py
+import plotly.figure_factory as ff
+import plotly.graph_objs as go
+from plotly.offline import iplot, init_notebook_mode
+# Using plotly + cufflinks in offline mode
+from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
+import cufflinks as cf
+cf.set_config_file(offline=True)
+import cufflinks
+cufflinks.go_offline(connected=True)
+init_notebook_mode(connected=True)
+
+# sklearn modules for preprocessing
+from sklearn.preprocessing import OneHotEncoder, LabelEncoder
+# from imblearn.over_sampling import SMOTE  # SMOTE
+# sklearn modules for ML model selection
+from sklearn.model_selection import train_test_split  # import 'train_test_split'
+from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.model_selection import ShuffleSplit
+from sklearn.model_selection import KFold
+from sklearn.model_selection import cross_val_score
+
+# Libraries for data modelling
+from sklearn import svm, tree, linear_model, neighbors
+from sklearn import naive_bayes, ensemble, discriminant_analysis, gaussian_process
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.naive_bayes import GaussianNB
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
+from xgboost import XGBClassifier
+from sklearn.ensemble import RandomForestClassifier
+
+# Common sklearn Model Helpers
+from sklearn import feature_selection
+from sklearn import model_selection
+from sklearn import metrics
+# from sklearn.datasets import make_classification
+
+# sklearn modules for performance metrics
+from sklearn.metrics import confusion_matrix, classification_report, precision_recall_curve
+from sklearn.metrics import auc, roc_auc_score, roc_curve, recall_score, log_loss
+from sklearn.metrics import f1_score, accuracy_score, roc_auc_score, make_scorer
+from sklearn.metrics import average_precision_score
+
+# importing misceallenous libraries
+import os
+import re
+import sys
+import timeit
+import string
+from datetime import datetime
+from time import time
+from dateutil.parser import parse
+# ip = get_ipython()
+# ip.register_magics(jupyternotify.JupyterNotifyMagics)
+
+# Read Excel file
+df_sourcefile = pd.read_excel(
+    'Data/WA_Fn-UseC_-HR-Employee-Attrition.xlsx', sheet_name=0)
+print("Shape of dataframe is: {}".format(df_sourcefile.shape))
+
+# Make a copy of the original sourcefile
+df_HR = df_sourcefile.copy()
+
+# Dataset columns
+df_HR.columns
+
+      
+# Dataset header
+df_HR.head()
+
+
+df_HR.columns.to_series().groupby(df_HR.dtypes).groups
+
+
+# Columns datatypes and missign values
+df_HR.info()
+
+
+df_HR.describe()
+
+df_HR.hist(figsize=(20,20))
+plt.show()
+
+(mu, sigma) = norm.fit(df_HR.loc[df_HR['Attrition'] == 'Yes', 'Age'])
+print(
+    'Ex-exmployees: average age = {:.1f} years old and standard deviation = {:.1f}'.format(mu, sigma))
+(mu, sigma) = norm.fit(df_HR.loc[df_HR['Attrition'] == 'No', 'Age'])
+print('Current exmployees: average age = {:.1f} years old and standard deviation = {:.1f}'.format(
+    mu, sigma))
+    
+# Add histogram data
+x1 = df_HR.loc[df_HR['Attrition'] == 'No', 'Age']
+x2 = df_HR.loc[df_HR['Attrition'] == 'Yes', 'Age']
+# Group data together
+hist_data = [x1, x2]
+group_labels = ['Active Employees', 'Ex-Employees']
+# Create distplot with custom bin_size
+fig = ff.create_distplot(hist_data, group_labels,
+                         curve_type='kde', show_hist=False, show_rug=False)
+# Add title
+fig['layout'].update(title='Age Distribution in Percent by Attrition Status')
+fig['layout'].update(xaxis=dict(range=[15, 60], dtick=5))
+# Plot
+py.iplot(fig, filename='Distplot with Multiple Datasets')
+
+
+# Education Field of employees
+df_HR['EducationField'].value_counts()
+
+df_EducationField = pd.DataFrame(columns=["Field", "% of Leavers"])
+i=0
+for field in list(df_HR['EducationField'].unique()):
+    ratio = df_HR[(df_HR['EducationField']==field)&(df_HR['Attrition']=="Yes")].shape[0] / df_HR[df_HR['EducationField']==field].shape[0]
+    df_EducationField.loc[i] = (field, ratio*100)
+    i += 1
+    #print("In {}, the ratio of leavers is {:.2f}%".format(field, ratio*100))    
+df_EF = df_EducationField.groupby(by="Field").sum()
+df_EF.iplot(kind='bar',title='Leavers by Education Field (%)')
+
+# Gender of employees
+df_HR['Gender'].value_counts()
+
+print("Normalised gender distribution of ex-employees in the dataset: Male = {:.1f}%; Female {:.1f}%.".format((df_HR[(df_HR['Attrition'] == 'Yes') & (
+    df_HR['Gender'] == 'Male')].shape[0] / df_HR[df_HR['Gender'] == 'Male'].shape[0])*100, (df_HR[(df_HR['Attrition'] == 'Yes') & (df_HR['Gender'] == 'Female')].shape[0] / df_HR[df_HR['Gender'] == 'Female'].shape[0])*100))
+
+
+df_Gender = pd.DataFrame(columns=["Gender", "% of Leavers"])
+i=0
+for field in list(df_HR['Gender'].unique()):
+    ratio = df_HR[(df_HR['Gender']==field)&(df_HR['Attrition']=="Yes")].shape[0] / df_HR[df_HR['Gender']==field].shape[0]
+    df_Gender.loc[i] = (field, ratio*100)
+    i += 1
+    #print("In {}, the ratio of leavers is {:.2f}%".format(field, ratio*100))    
+df_G = df_Gender.groupby(by="Gender").sum()
+df_G.iplot(kind='bar',title='Leavers by Gender (%)')
+
+# Marital Status of employees
+df_HR['MaritalStatus'].value_counts()
+
+df_Marital = pd.DataFrame(columns=["Marital Status", "% of Leavers"])
+i=0
+for field in list(df_HR['MaritalStatus'].unique()):
+    ratio = df_HR[(df_HR['MaritalStatus']==field)&(df_HR['Attrition']=="Yes")].shape[0] / df_HR[df_HR['MaritalStatus']==field].shape[0]
+    df_Marital.loc[i] = (field, ratio*100)
+    i += 1
+    #print("In {}, the ratio of leavers is {:.2f}%".format(field, ratio*100))    
+df_MF = df_Marital.groupby(by="Marital Status").sum()
+df_MF.iplot(kind='bar',title='Leavers by Marital Status (%)')
+
+# Distance from Home
+print("Distance from home for employees to get to work is from {} to {} miles.".format(df_HR['DistanceFromHome'].min(),
+                                                                                       df_HR['DistanceFromHome'].max()))
+                                                                                       
+print('Average distance from home for currently active employees: {:.2f} miles and ex-employees: {:.2f} miles'.format(
+    df_HR[df_HR['Attrition'] == 'No']['DistanceFromHome'].mean(), df_HR[df_HR['Attrition'] == 'Yes']['DistanceFromHome'].mean()))
+    
+# Add histogram data
+x1 = df_HR.loc[df_HR['Attrition'] == 'No', 'DistanceFromHome']
+x2 = df_HR.loc[df_HR['Attrition'] == 'Yes', 'DistanceFromHome']
+# Group data together
+hist_data = [x1, x2]
+group_labels = ['Active Employees', 'Ex-Employees']
+# Create distplot with custom bin_size
+fig = ff.create_distplot(hist_data, group_labels,
+                         curve_type='kde', show_hist=False, show_rug=False)
+# Add title
+fig['layout'].update(
+    title='Distance From Home Distribution in Percent by Attrition Status')
+fig['layout'].update(xaxis=dict(range=[0, 30], dtick=2))
+# Plot
+py.iplot(fig, filename='Distplot with Multiple Datasets')
+
+# The organisation consists of several departments
+df_HR['Department'].value_counts()
+
+df_Department = pd.DataFrame(columns=["Department", "% of Leavers"])
+i=0
+for field in list(df_HR['Department'].unique()):
+    ratio = df_HR[(df_HR['Department']==field)&(df_HR['Attrition']=="Yes")].shape[0] / df_HR[df_HR['Department']==field].shape[0]
+    df_Department.loc[i] = (field, ratio*100)
+    i += 1
+    #print("In {}, the ratio of leavers is {:.2f}%".format(field, ratio*100))    
+df_DF = df_Department.groupby(by="Department").sum()
+df_DF.iplot(kind='bar',title='Leavers by Department (%)')
+
+# Employees have different business travel commitmnent depending on their roles and level in the organisation
+df_HR['BusinessTravel'].value_counts()
+
+df_BusinessTravel = pd.DataFrame(columns=["Business Travel", "% of Leavers"])
+i=0
+for field in list(df_HR['BusinessTravel'].unique()):
+    ratio = df_HR[(df_HR['BusinessTravel']==field)&(df_HR['Attrition']=="Yes")].shape[0] / df_HR[df_HR['BusinessTravel']==field].shape[0]
+    df_BusinessTravel.loc[i] = (field, ratio*100)
+    i += 1
+    #print("In {}, the ratio of leavers is {:.2f}%".format(field, ratio*100))    
+df_BT = df_BusinessTravel.groupby(by="Business Travel").sum()
+df_BT.iplot(kind='bar',title='Leavers by Business Travel (%)')
+
+# Employees in the database have several roles on-file
+df_HR['JobRole'].value_counts()
+
+df_JobRole = pd.DataFrame(columns=["Job Role", "% of Leavers"])
+i=0
+for field in list(df_HR['JobRole'].unique()):
+    ratio = df_HR[(df_HR['JobRole']==field)&(df_HR['Attrition']=="Yes")].shape[0] / df_HR[df_HR['JobRole']==field].shape[0]
+    df_JobRole.loc[i] = (field, ratio*100)
+    i += 1
+    #print("In {}, the ratio of leavers is {:.2f}%".format(field, ratio*100))    
+df_JR = df_JobRole.groupby(by="Job Role").sum()
+df_JR.iplot(kind='bar',title='Leavers by Job Role (%)')
+
+df_HR['JobLevel'].value_counts()
+
+df_JobLevel = pd.DataFrame(columns=["Job Level", "% of Leavers"])
+i=0
+for field in list(df_HR['JobLevel'].unique()):
+    ratio = df_HR[(df_HR['JobLevel']==field)&(df_HR['Attrition']=="Yes")].shape[0] / df_HR[df_HR['JobLevel']==field].shape[0]
+    df_JobLevel.loc[i] = (field, ratio*100)
+    i += 1
+    #print("In {}, the ratio of leavers is {:.2f}%".format(field, ratio*100))    
+df_JL = df_JobLevel.groupby(by="Job Level").sum()
+df_JL.iplot(kind='bar',title='Leavers by Job Level (%)')
+
+df_HR['JobInvolvement'].value_counts()
+
+df_JobInvolvement = pd.DataFrame(columns=["Job Involvement", "% of Leavers"])
+i=0
+for field in list(df_HR['JobInvolvement'].unique()):
+    ratio = df_HR[(df_HR['JobInvolvement']==field)&(df_HR['Attrition']=="Yes")].shape[0] / df_HR[df_HR['JobInvolvement']==field].shape[0]
+    df_JobInvolvement.loc[i] = (field, ratio*100)
+    i += 1
+    #print("In {}, the ratio of leavers is {:.2f}%".format(field, ratio*100))    
+df_JI = df_JobInvolvement.groupby(by="Job Involvement").sum()
+df_JI.iplot(kind='bar',title='Leavers by Job Involvement (%)')
+
+print("Number of training times last year varies from {} to {} years.".format(
+    df_HR['TrainingTimesLastYear'].min(), df_HR['TrainingTimesLastYear'].max()))
+    
+# Add histogram data
+x1 = df_HR.loc[df_HR['Attrition'] == 'No', 'TrainingTimesLastYear']
+x2 = df_HR.loc[df_HR['Attrition'] == 'Yes', 'TrainingTimesLastYear']
+# Group data together
+hist_data = [x1, x2]
+group_labels = ['Active Employees', 'Ex-Employees']
+# Create distplot with custom bin_size
+fig = ff.create_distplot(hist_data, group_labels,
+                         curve_type='kde', show_hist=False, show_rug=False)
+# Add title
+fig['layout'].update(
+    title='Training Times Last Year metric in Percent by Attrition Status')
+fig['layout'].update(xaxis=dict(range=[0, 6], dtick=1))
+# Plot
+py.iplot(fig, filename='Distplot with Multiple Datasets')
+
+df_HR['NumCompaniesWorked'].value_counts()
+
+df_NumCompaniesWorked = pd.DataFrame(columns=["Num Companies Worked", "% of Leavers"])
+i=0
+for field in list(df_HR['NumCompaniesWorked'].unique()):
+    ratio = df_HR[(df_HR['NumCompaniesWorked']==field)&(df_HR['Attrition']=="Yes")].shape[0] / df_HR[df_HR['NumCompaniesWorked']==field].shape[0]
+    df_NumCompaniesWorked.loc[i] = (field, ratio*100)
+    i += 1
+    #print("In {}, the ratio of leavers is {:.2f}%".format(field, ratio*100))    
+df_NC = df_NumCompaniesWorked.groupby(by="Num Companies Worked").sum()
+df_NC.iplot(kind='bar',title='Leavers by Num Companies Worked (%)')
+
+df_HR
+
+print('Average Number of Years at the company for currently active employees: {:.2f} miles and ex-employees: {:.2f} years'.format(
+    df_HR[df_HR['Attrition'] == 'No']['YearsAtCompany'].mean(), df_HR[df_HR['Attrition'] == 'Yes']['YearsAtCompany'].mean()))
+    
+print("Number of Years at the company varies from {} to {} years.".format(
+    df_HR['YearsAtCompany'].min(), df_HR['YearsAtCompany'].max()))
+
+# Add histogram data
+x1 = df_HR.loc[df_HR['Attrition'] == 'No', 'YearsAtCompany']
+x2 = df_HR.loc[df_HR['Attrition'] == 'Yes', 'YearsAtCompany']
+# Group data together
+hist_data = [x1, x2]
+group_labels = ['Active Employees', 'Ex-Employees']
+# Create distplot with custom bin_size
+fig = ff.create_distplot(hist_data, group_labels,
+                         curve_type='kde', show_hist=False, show_rug=False)
+# Add title
+fig['layout'].update(title='Years At Company in Percent by Attrition Status')
+fig['layout'].update(xaxis=dict(range=[0, 40], dtick=5))
+# Plot
+py.iplot(fig, filename='Distplot with Multiple Datasets')
+
+print("Number of Years in the current role varies from {} to {} years.".format(
+    df_HR['YearsInCurrentRole'].min(), df_HR['YearsInCurrentRole'].max()))
+
+# Add histogram data
+x1 = df_HR.loc[df_HR['Attrition'] == 'No', 'YearsInCurrentRole']
+x2 = df_HR.loc[df_HR['Attrition'] == 'Yes', 'YearsInCurrentRole']
+# Group data together
+hist_data = [x1, x2]
+group_labels = ['Active Employees', 'Ex-Employees']
+# Create distplot with custom bin_size
+fig = ff.create_distplot(hist_data, group_labels,
+                         curve_type='kde', show_hist=False, show_rug=False)
+# Add title
+fig['layout'].update(title='Years InCurrent Role in Percent by Attrition Status')
+fig['layout'].update(xaxis=dict(range=[0, 18], dtick=1))
+# Plot
+py.iplot(fig, filename='Distplot with Multiple Datasets')
+
+print("Number of Years since last promotion varies from {} to {} years.".format(
+    df_HR['YearsSinceLastPromotion'].min(), df_HR['YearsSinceLastPromotion'].max()))
+    
+# Add histogram data
+x1 = df_HR.loc[df_HR['Attrition'] == 'No', 'YearsSinceLastPromotion']
+x2 = df_HR.loc[df_HR['Attrition'] == 'Yes', 'YearsSinceLastPromotion']
+# Group data together
+hist_data = [x1, x2]
+group_labels = ['Active Employees', 'Ex-Employees']
+# Create distplot with custom bin_size
+fig = ff.create_distplot(hist_data, group_labels,
+                         curve_type='kde', show_hist=False, show_rug=False)
+# Add title
+fig['layout'].update(title='Years Since Last Promotion in Percent by Attrition Status')
+fig['layout'].update(xaxis=dict(range=[0, 15], dtick=1))
+# Plot
+py.iplot(fig, filename='Distplot with Multiple Datasets')
+
+print("Total working years varies from {} to {} years.".format(
+    df_HR['TotalWorkingYears'].min(), df_HR['TotalWorkingYears'].max()))
+    
+# Add histogram data
+x1 = df_HR.loc[df_HR['Attrition'] == 'No', 'TotalWorkingYears']
+x2 = df_HR.loc[df_HR['Attrition'] == 'Yes', 'TotalWorkingYears']
+# Group data together
+hist_data = [x1, x2]
+group_labels = ['Active Employees', 'Ex-Employees']
+# Create distplot with custom bin_size
+fig = ff.create_distplot(hist_data, group_labels,
+                         curve_type='kde', show_hist=False, show_rug=False)
+# Add title
+fig['layout'].update(title='Total Working Years in Percent by Attrition Status')
+fig['layout'].update(xaxis=dict(range=[0, 40], dtick=5))
+# Plot
+py.iplot(fig, filename='Distplot with Multiple Datasets')
+
+print('Average Number of Years wit current manager for currently active employees: {:.2f} miles and ex-employees: {:.2f} years'.format(
+    df_HR[df_HR['Attrition'] == 'No']['YearsWithCurrManager'].mean(), df_HR[df_HR['Attrition'] == 'Yes']['YearsWithCurrManager'].mean()))
+    
+print("Number of Years wit current manager varies from {} to {} years.".format(
+    df_HR['YearsWithCurrManager'].min(), df_HR['YearsWithCurrManager'].max()))
+    
+# Add histogram data
+x1 = df_HR.loc[df_HR['Attrition'] == 'No', 'YearsWithCurrManager']
+x2 = df_HR.loc[df_HR['Attrition'] == 'Yes', 'YearsWithCurrManager']
+# Group data together
+hist_data = [x1, x2]
+group_labels = ['Active Employees', 'Ex-Employees']
+# Create distplot with custom bin_size
+fig = ff.create_distplot(hist_data, group_labels,
+                         curve_type='kde', show_hist=False, show_rug=False)
+# Add title
+fig['layout'].update(
+    title='Years With Curr Manager in Percent by Attrition Status')
+fig['layout'].update(xaxis=dict(range=[0, 17], dtick=1))
+# Plot
+py.iplot(fig, filename='Distplot with Multiple Datasets')
+
+df_HR['WorkLifeBalance'].value_counts()
+
+df_WorkLifeBalance = pd.DataFrame(columns=["WorkLifeBalance", "% of Leavers"])
+i=0
+for field in list(df_HR['WorkLifeBalance'].unique()):
+    ratio = df_HR[(df_HR['WorkLifeBalance']==field)&(df_HR['Attrition']=="Yes")].shape[0] / df_HR[df_HR['WorkLifeBalance']==field].shape[0]
+    df_WorkLifeBalance.loc[i] = (field, ratio*100)
+    i += 1
+    #print("In {}, the ratio of leavers is {:.2f}%".format(field, ratio*100))    
+df_WLB = df_WorkLifeBalance.groupby(by="WorkLifeBalance").sum()
+df_WLB.iplot(kind='bar',title='Leavers by WorkLifeBalance (%)')
+
+df_HR['StandardHours'].value_counts()
+
+df_HR['OverTime'].value_counts()
+
+df_OverTime = pd.DataFrame(columns=["OverTime", "% of Leavers"])
+i=0
+for field in list(df_HR['OverTime'].unique()):
+    ratio = df_HR[(df_HR['OverTime']==field)&(df_HR['Attrition']=="Yes")].shape[0] / df_HR[df_HR['OverTime']==field].shape[0]
+    df_OverTime.loc[i] = (field, ratio*100)
+    i += 1
+    #print("In {}, the ratio of leavers is {:.2f}%".format(field, ratio*100))    
+df_OT = df_OverTime.groupby(by="OverTime").sum()
+df_OT.iplot(kind='bar',title='Leavers by OverTime (%)')
+
+print("Employee Hourly Rate varies from ${} to ${}.".format(
+    df_HR['HourlyRate'].min(), df_HR['HourlyRate'].max()))
+    
+print("Employee Daily Rate varies from ${} to ${}.".format(
+    df_HR['DailyRate'].min(), df_HR['DailyRate'].max()))
+    
+print("Employee Monthly Rate varies from ${} to ${}.".format(
+    df_HR['MonthlyRate'].min(), df_HR['MonthlyRate'].max()))
+
+print("Employee Monthly Income varies from ${} to ${}.".format(
+    df_HR['MonthlyIncome'].min(), df_HR['MonthlyIncome'].max()))
+    
+# Add histogram data
+x1 = df_HR.loc[df_HR['Attrition'] == 'No', 'MonthlyIncome']
+x2 = df_HR.loc[df_HR['Attrition'] == 'Yes', 'MonthlyIncome']
+# Group data together
+hist_data = [x1, x2]
+group_labels = ['Active Employees', 'Ex-Employees']
+# Create distplot with custom bin_size
+fig = ff.create_distplot(hist_data, group_labels,
+                         curve_type='kde', show_hist=False, show_rug=False)
+# Add title
+fig['layout'].update(title='Monthly Income by Attrition Status')
+fig['layout'].update(xaxis=dict(range=[0, 20000], dtick=2000))
+# Plot
+py.iplot(fig, filename='Distplot with Multiple Datasets')
+
+print("Percentage Salary Hikes varies from {}% to {}%.".format(
+    df_HR['PercentSalaryHike'].min(), df_HR['PercentSalaryHike'].max()))
+    
+# Add histogram data
+x1 = df_HR.loc[df_HR['Attrition'] == 'No', 'PercentSalaryHike']
+x2 = df_HR.loc[df_HR['Attrition'] == 'Yes', 'PercentSalaryHike']
+# Group data together
+hist_data = [x1, x2]
+group_labels = ['Active Employees', 'Ex-Employees']
+# Create distplot with custom bin_size
+fig = ff.create_distplot(hist_data, group_labels,
+                         curve_type='kde', show_hist=False, show_rug=False)
+# Add title
+fig['layout'].update(title='Percent Salary Hike by Attrition Status')
+fig['layout'].update(xaxis=dict(range=[10, 26], dtick=1))
+# Plot
+py.iplot(fig, filename='Distplot with Multiple Datasets')
+
+print("Stock Option Levels varies from {} to {}.".format(
+    df_HR['StockOptionLevel'].min(), df_HR['StockOptionLevel'].max()))
+
+print("Normalised percentage of leavers by Stock Option Level: 1: {:.2f}%, 2: {:.2f}%, 3: {:.2f}%".format(
+    df_HR[(df_HR['Attrition'] == 'Yes') & (df_HR['StockOptionLevel'] == 1)
+          ].shape[0] / df_HR[df_HR['StockOptionLevel'] == 1].shape[0]*100,
+    df_HR[(df_HR['Attrition'] == 'Yes') & (df_HR['StockOptionLevel'] == 2)
+          ].shape[0] / df_HR[df_HR['StockOptionLevel'] == 1].shape[0]*100,
+    df_HR[(df_HR['Attrition'] == 'Yes') & (df_HR['StockOptionLevel'] == 3)].shape[0] / df_HR[df_HR['StockOptionLevel'] == 1].shape[0]*100))
+    
+df_StockOptionLevel = pd.DataFrame(columns=["StockOptionLevel", "% of Leavers"])
+i=0
+for field in list(df_HR['StockOptionLevel'].unique()):
+    ratio = df_HR[(df_HR['StockOptionLevel']==field)&(df_HR['Attrition']=="Yes")].shape[0] / df_HR[df_HR['StockOptionLevel']==field].shape[0]
+    df_StockOptionLevel.loc[i] = (field, ratio*100)
+    i += 1
+    #print("In {}, the ratio of leavers is {:.2f}%".format(field, ratio*100))    
+df_SOL = df_StockOptionLevel.groupby(by="StockOptionLevel").sum()
+df_SOL.iplot(kind='bar',title='Leavers by Stock Option Level (%)')
+
+df_HR['EnvironmentSatisfaction'].value_counts()
+
+df_EnvironmentSatisfaction = pd.DataFrame(columns=["EnvironmentSatisfaction", "% of Leavers"])
+i=0
+for field in list(df_HR['EnvironmentSatisfaction'].unique()):
+    ratio = df_HR[(df_HR['EnvironmentSatisfaction']==field)&(df_HR['Attrition']=="Yes")].shape[0] / df_HR[df_HR['EnvironmentSatisfaction']==field].shape[0]
+    df_EnvironmentSatisfaction.loc[i] = (field, ratio*100)
+    i += 1
+    #print("In {}, the ratio of leavers is {:.2f}%".format(field, ratio*100))    
+df_Env = df_EnvironmentSatisfaction.groupby(by="EnvironmentSatisfaction").sum()
+df_Env.iplot(kind='bar',title='Leavers by Environment Satisfaction (%)')
+
+# Job Satisfaction was captured as: 1 'Low' 2 'Medium' 3 'High' 4 'Very High'
+df_HR['JobSatisfaction'].value_counts()
+
+df_JobSatisfaction = pd.DataFrame(columns=["JobSatisfaction", "% of Leavers"])
+i=0
+for field in list(df_HR['JobSatisfaction'].unique()):
+    ratio = df_HR[(df_HR['JobSatisfaction']==field)&(df_HR['Attrition']=="Yes")].shape[0] / df_HR[df_HR['JobSatisfaction']==field].shape[0]
+    df_JobSatisfaction.loc[i] = (field, ratio*100)
+    i += 1
+    #print("In {}, the ratio of leavers is {:.2f}%".format(field, ratio*100))    
+df_JS = df_JobSatisfaction.groupby(by="JobSatisfaction").sum()
+df_JS.iplot(kind='bar',title='Leavers by Job Satisfaction (%)')
+
+df_HR['RelationshipSatisfaction'].value_counts()
+
+df_RelationshipSatisfaction = pd.DataFrame(columns=["RelationshipSatisfaction", "% of Leavers"])
+i=0
+for field in list(df_HR['RelationshipSatisfaction'].unique()):
+    ratio = df_HR[(df_HR['RelationshipSatisfaction']==field)&(df_HR['Attrition']=="Yes")].shape[0] / df_HR[df_HR['RelationshipSatisfaction']==field].shape[0]
+    df_RelationshipSatisfaction.loc[i] = (field, ratio*100)
+    i += 1
+    #print("In {}, the ratio of leavers is {:.2f}%".format(field, ratio*100))    
+df_RS = df_RelationshipSatisfaction.groupby(by="RelationshipSatisfaction").sum()
+df_RS.iplot(kind='bar',title='Leavers by Relationship Satisfaction (%)')
+
+df_HR['PerformanceRating'].value_counts()
+
+print("Normalised percentage of leavers by Stock Option Level: 3: {:.2f}%, 4: {:.2f}%".format(
+    df_HR[(df_HR['Attrition'] == 'Yes') & (df_HR['PerformanceRating'] == 3)
+          ].shape[0] / df_HR[df_HR['StockOptionLevel'] == 1].shape[0]*100,
+    df_HR[(df_HR['Attrition'] == 'Yes') & (df_HR['PerformanceRating'] == 4)].shape[0] / df_HR[df_HR['StockOptionLevel'] == 1].shape[0]*100))
+    
+df_PerformanceRating = pd.DataFrame(columns=["PerformanceRating", "% of Leavers"])
+i=0
+for field in list(df_HR['PerformanceRating'].unique()):
+    ratio = df_HR[(df_HR['PerformanceRating']==field)&(df_HR['Attrition']=="Yes")].shape[0] / df_HR[df_HR['PerformanceRating']==field].shape[0]
+    df_PerformanceRating.loc[i] = (field, ratio*100)
+    i += 1
+    #print("In {}, the ratio of leavers is {:.2f}%".format(field, ratio*100))    
+df_PR = df_PerformanceRating.groupby(by="PerformanceRating").sum()
+df_PR.iplot(kind='bar',title='Leavers by Performance Rating (%)')
+
+# Attrition indicates if the employee is currently active ('No') or has left the company ('Yes')
+df_HR['Attrition'].value_counts()
+
+print("Percentage of Current Employees is {:.1f}% and of Ex-employees is: {:.1f}%".format(
+    df_HR[df_HR['Attrition'] == 'No'].shape[0] / df_HR.shape[0]*100,
+    df_HR[df_HR['Attrition'] == 'Yes'].shape[0] / df_HR.shape[0]*100))
+    
+df_HR['Attrition'].iplot(kind='hist', xTitle='Attrition',
+                         yTitle='count', title='Attrition Distribution')
+                         
+# Find correlations with the target and sort
+df_HR_trans = df_HR.copy()
+df_HR_trans['Target'] = df_HR_trans['Attrition'].apply(
+    lambda x: 0 if x == 'No' else 1)
+df_HR_trans = df_HR_trans.drop(
+    ['Attrition', 'EmployeeCount', 'EmployeeNumber', 'StandardHours', 'Over18'], axis=1)
+correlations = df_HR_trans.corr()['Target'].sort_values()
+print('Most Positive Correlations: \n', correlations.tail(5))
+print('\nMost Negative Correlations: \n', correlations.head(5))
+
+# Calculate correlations
+corr = df_HR_trans.corr()
+mask = np.zeros_like(corr)
+mask[np.triu_indices_from(mask)] = True
+# Heatmap
+plt.figure(figsize=(15, 10))
+sns.heatmap(corr,
+            vmax=.5,
+            mask=mask,
+            # annot=True, fmt='.2f',
+            linewidths=.2, cmap="YlGnBu")
+            
+ from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+# Create a label encoder object
+le = LabelEncoder()
+
+print(df_HR.shape)
+df_HR.head()
+
+# Label Encoding will be used for columns with 2 or less unique values
+le_count = 0
+for col in df_HR.columns[1:]:
+    if df_HR[col].dtype == 'object':
+        if len(list(df_HR[col].unique())) <= 2:
+            le.fit(df_HR[col])
+            df_HR[col] = le.transform(df_HR[col])
+            le_count += 1
+print('{} columns were label encoded.'.format(le_count))
+
+# convert rest of categorical variable into dummy
+df_HR = pd.get_dummies(df_HR, drop_first=True)
+
+print(df_HR.shape)
+df_HR.head()
+
+# import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler
+scaler = MinMaxScaler(feature_range=(0, 5))
+HR_col = list(df_HR.columns)
+HR_col.remove('Attrition')
+for col in HR_col:
+    df_HR[col] = df_HR[col].astype(float)
+    df_HR[[col]] = scaler.fit_transform(df_HR[[col]])
+df_HR['Attrition'] = pd.to_numeric(df_HR['Attrition'], downcast='float')
+df_HR.head()
+
+print('Size of Full Encoded Dataset: {}'. format(df_HR.shape))
+
+# assign the target to a new dataframe and convert it to a numerical feature
+#df_target = df_HR[['Attrition']].copy()
+target = df_HR['Attrition'].copy()
+
+type(target)
+
+# let's remove the target feature and redundant features from the dataset
+df_HR.drop(['Attrition', 'EmployeeCount', 'EmployeeNumber',
+            'StandardHours', 'Over18'], axis=1, inplace=True)
+print('Size of Full dataset is: {}'.format(df_HR.shape))
+
+# Since we have class imbalance (i.e. more employees with turnover=0 than turnover=1)
+# let's use stratify=y to maintain the same ratio as in the training dataset when splitting the dataset
+X_train, X_test, y_train, y_test = train_test_split(df_HR,
+                                                    target,
+                                                    test_size=0.25,
+                                                    random_state=7,
+                                                    stratify=target)  
+print("Number transactions X_train dataset: ", X_train.shape)
+print("Number transactions y_train dataset: ", y_train.shape)
+print("Number transactions X_test dataset: ", X_test.shape)
+print("Number transactions y_test dataset: ", y_test.shape)
+
